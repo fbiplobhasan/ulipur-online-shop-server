@@ -33,6 +33,7 @@ async function run() {
 
         // all collection
         const productCollection = client.db("shopDb").collection("products");
+        const userCollection = client.db("shopDb").collection("users");
 
         // products related apis
         app.get('/products', async (req, res) => {
@@ -40,9 +41,9 @@ async function run() {
             const size = parseInt(req.query.size);
 
             const result = await productCollection.find()
-            .skip(page * size)
-            .limit(size)
-            .toArray();
+                .skip(page * size)
+                .limit(size)
+                .toArray();
             res.send(result);
         })
 
@@ -50,6 +51,22 @@ async function run() {
         app.get('/productsCount', async (req, res) => {
             const count = await productCollection.estimatedDocumentCount();
             res.send({ count });
+        })
+
+        // users related apis
+        app.post('/users', async (req, res) => {
+            const userInfo = req.body;
+            const query = { email: userInfo.email };
+            const existingUser = await userCollection.findOne(query);
+            if (existingUser) {
+                return res.send({ message: 'user already exists', insertedId: null })
+            }
+            const result = await userCollection.insertOne({
+                ...userInfo,
+                role: "customer",
+                timestamp: Date.now(),
+            });
+            res.send(result);
         })
 
         // Send a ping to confirm a successful connection

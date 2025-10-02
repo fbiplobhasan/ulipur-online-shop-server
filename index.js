@@ -2,7 +2,7 @@ require('dotenv').config();
 const cors = require('cors');
 const express = require('express');
 require('dotenv').config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 
 
@@ -36,6 +36,13 @@ async function run() {
         const userCollection = client.db("shopDb").collection("users");
 
         // products related apis
+        app.post('/products', async (req, res) => {
+            const newProduct = req.body;
+            const result = await productCollection.insertOne(newProduct);
+            res.send(result);
+        })
+
+
         app.get('/products', async (req, res) => {
             const page = parseInt(req.query.page);
             const size = parseInt(req.query.size);
@@ -47,6 +54,38 @@ async function run() {
             res.send(result);
         })
 
+        // specific product
+        app.get('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await productCollection.findOne(query);
+            res.send(result);
+        });
+
+        app.patch('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    name: req.body.name,
+                    category: req.body.category,
+                    price: req.body.price,
+                    recipe: req.body.description,
+                    image: req.body.image
+                }
+            }
+
+            const result = await productCollection.updateOne(filter, updatedDoc)
+            res.send(result);
+        })
+
+        app.delete('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await productCollection.deleteOne(query);
+            res.send(result);
+        })
+
         // get products count
         app.get('/productsCount', async (req, res) => {
             const count = await productCollection.estimatedDocumentCount();
@@ -54,6 +93,17 @@ async function run() {
         })
 
         // users related apis
+        app.get('/users/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+            const user = await userCollection.findOne(query);
+            let admin = false;
+            if (user) {
+                admin = user?.role === 'admin';
+            };
+            res.send({ admin })
+        })
+
         app.post('/users', async (req, res) => {
             const userInfo = req.body;
             const query = { email: userInfo.email };
@@ -61,11 +111,31 @@ async function run() {
             if (existingUser) {
                 return res.send({ message: 'user already exists', insertedId: null })
             }
-            const result = await userCollection.insertOne({
-                ...userInfo,
-                role: "customer",
-                timestamp: Date.now(),
-            });
+            const result = await userCollection.insertOne(userInfo);
+            res.send(result);
+        })
+
+        app.patch('/users/admin/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    role: 'admin'
+                }
+            }
+            const result = await userCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        })
+
+        app.delete('/users/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await userCollection.deleteOne(query);
+            res.send(result);
+        })
+
+        app.get('/users', async (req, res) => {
+            const result = await userCollection.find().toArray();
             res.send(result);
         })
 
